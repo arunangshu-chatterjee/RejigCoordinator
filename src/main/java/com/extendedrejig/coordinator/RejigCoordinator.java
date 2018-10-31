@@ -3,6 +3,7 @@ package com.extendedrejig.coordinator;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import com.extendedrejig.model.Config;
 import com.extendedrejig.model.ConfigModel;
@@ -17,13 +18,17 @@ public class RejigCoordinator<T> {
 
 	private Map<String, MemCachedClient> memCachedClients = new HashMap<String, MemCachedClient>();
 
+	public void createPool(String cmiAddr) {
+		SockIOPool pool = SockIOPool.getInstance(cmiAddr);
+        pool.setServers(new String[] { cmiAddr });
+		this.memCachedClients.put(cmiAddr, new MemCachedClient(cmiAddr));
+	}
+	
 	RejigCoordinator(Config<String> config) {
 		for(Entry<Integer, String> entry : config.get().fragmentToCMIMap.entrySet()) {
 			String cmiAddr = entry.getValue();
-			SockIOPool pool = SockIOPool.getInstance(cmiAddr);
-            pool.setServers(new String[] { cmiAddr });
-			this.memCachedClients.put(cmiAddr, new MemCachedClient(cmiAddr));
-            updateImpactedCMI(cmiAddr);
+			createPool(cmiAddr);
+			updateImpactedCMI(cmiAddr);
 		}
     }
 
@@ -45,45 +50,41 @@ public class RejigCoordinator<T> {
          * 
          * Algorithm to setConfig for addition or deletion of fragments:
          * 1. Get old and new configs and store them in 2 sets
-         * 2. Get the result of the intersection of these 2 sets. X
-         * 3. if length of old config != new config: 
-         *    	update new_config in the intersection list CMIs
-         *    else:
-         *    	for each fragmentNo:
-         *    		if IP:Port different in old config vs. new config
-         *    			update fragment IP:Port to new config
+         * 2. For each item in old_config:
+         * 		if item present in both old_config and new_config and IP:Port of old_config != IP:Port of new_config 
+         *    		update old_config to new_config
+         *    	else
+         *    		remove item from the old_config (update old_config to new_config)
+         * 3. For each item in new_config minus old_config:
+         *    		update fragment IP:Port to new config
          */
 		
 		Map<Integer, T> oldConfigMap = config.get().fragmentToCMIMap;
 		Map<Integer, T> newConfigMap = newConfig.get().fragmentToCMIMap;
 		
-		if (oldConfigMap.size() < newConfigMap.size()) {
-			Map<Integer, T> result = new HashMap<Integer, T>(oldConfigMap);
-			result.keySet().retainAll(newConfigMap.keySet());
-			for(Entry<Integer, T> entry : result.entrySet()) {
-				String cmiAddr = (String) entry.getValue();
-				this.memCachedClients.put(cmiAddr, new MemCachedClient(cmiAddr));
-	            updateImpactedCMI(cmiAddr); //Add new Fragment details
+		for (int fragmentNum : oldConfigMap.keySet()) {
+			if (newConfigMap.keySet().contains(fragmentNum) && oldConfigMap.get(fragmentNum) != newConfigMap.get(fragmentNum)) {
+				String cmiAddr = (String) newConfigMap.get(fragmentNum);
+				createPool(cmiAddr); //Check if required
+				updateImpactedCMI(cmiAddr);
 			}
-		}
-		else if(oldConfigMap.size() > newConfigMap.size()) {
-			Map<Integer, T> result = new HashMap<Integer, T>(oldConfigMap);
-			result.keySet().retainAll(newConfigMap.keySet());
-			for(Entry<Integer, T> entry : result.entrySet()) {
-				String cmiAddr = (String) entry.getValue();
-				this.memCachedClients.put(cmiAddr, new MemCachedClient(cmiAddr));
-	            updateImpactedCMI(cmiAddr); //Remove new Fragment details
-			}
-		}
-		else {
-			for(Entry<Integer, T> entry : oldConfigMap.entrySet()) {
-				String oldCMIAddr = (String) entry.getValue();
-				if (oldCMIAddr != newConfig) 
+			else if (!newConfigMap.keySet().contains(fragmentNum)){
+				String cmiAddr = (String) newConfigMap.get(fragmentNum);
+				createPool(cmiAddr); //Check if required
+				updateImpactedCMI(cmiAddr);
 			}
 		}
 		
-		
-		
+		Set<Map.Entry<Integer, T>> filter = oldConfigMap.entrySet();
+		for( Map.Entry<Integer, T> entry : newConfigMap.entrySet() )
+		{
+			 if( !filter.contains( entry ))
+			 { 
+				 String cmiAddr = (String) entry.getValue();
+					createPool(cmiAddr); //Check if required
+					updateImpactedCMI(cmiAddr);
+			    }
+		}
 		
         config.get().globalConfigId++;  
         //Different for  loop for checking cases where fragments doesn't exist in new(removal of fragments.)
