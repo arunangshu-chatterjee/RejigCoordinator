@@ -9,6 +9,7 @@ dependencies {
 
     // These dependency is used internally, and not exposed to consumers on their own compile classpath.
     implementation 'com.whalin:Memcached-Java-Client:3.0.2'
+    implementation project('RejigInterface')
 
     // Use JUnit test framework
     testImplementation 'junit:junit:4.12'
