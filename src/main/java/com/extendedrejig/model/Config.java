@@ -1,11 +1,11 @@
 package com.extendedrejig.model;
 
 public interface Config<T> {
-	ConfigModel<T> get();
+  ConfigModel<T> get();
 
-	void setFragment(int fragmentNum, T newAddr);
-	
-	void deleteFragment(int fragmentNum);
+  void setFragment(int fragmentNum, T newAddr);
 
-	T getFragment(int fragmentNum);
+  void deleteFragment(int fragmentNum);
+
+  T getFragment(int fragmentNum);
 }
