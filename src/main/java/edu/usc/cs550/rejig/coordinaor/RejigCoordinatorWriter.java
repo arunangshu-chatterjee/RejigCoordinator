@@ -22,9 +22,9 @@ public class RejigCoordinatorWriter extends RejigWriterGrpc.RejigWriterImplBase 
 
   private static final String CONFIG_ID_MEMCACHED_KEY = "$$CONFIG_ID_KEY$$";
 
-  private Config config;
+  protected Config config;
 
-  private Map<String, MemCachedClient> memCachedClients = new HashMap<String, MemCachedClient>();
+  protected Map<String, MemCachedClient> memCachedClients = new HashMap<String, MemCachedClient>();
 
   /**
    * Creates a writer to RejigCoordinator.
