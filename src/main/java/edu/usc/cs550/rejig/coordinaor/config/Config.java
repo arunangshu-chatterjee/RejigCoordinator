@@ -23,23 +23,23 @@ public interface Config {
    * To call before calling any of the setter methods.
    * Manage any necessary locking here.
    */
-  void beginUpdate();
+  Config beginUpdate();
 
   /**
    * Sets a new CMI address for the given fragment number.
    * Overrides existing fragments.
    */
-  void setFragment(int fragmentNum, String newAddr);
+  Config setFragment(int fragmentNum, String newAddr);
 
   /**
    * Deletes a fragment from the config.
    */
-  void deleteFragment(int fragmentNum);
+  Config deleteFragment(int fragmentNum);
 
   /**
    * To call after calling all of the setter methods.
    * Manage any necessary locking here.
    * This method should also increment the config id.
    */
-  void endUpdate();
+  Config endUpdate();
 }

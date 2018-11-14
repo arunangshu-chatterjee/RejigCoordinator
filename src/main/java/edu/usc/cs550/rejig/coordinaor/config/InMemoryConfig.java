@@ -14,7 +14,7 @@ public class InMemoryConfig implements Config {
 
   final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
-  public boolean isUpdating = false;
+  private boolean isUpdating = false;
 
   public InMemoryConfig() {
     configBuilder = RejigConfig.newBuilder();
@@ -53,30 +53,35 @@ public class InMemoryConfig implements Config {
   }
 
   @Override
-  public void beginUpdate() {
+  public InMemoryConfig beginUpdate() {
     lock.writeLock().lock();
     isUpdating = true;
+    return this;
   }
 
   @Override
-  public void setFragment(int fragmentNum, String newAddr) {
+  public InMemoryConfig setFragment(int fragmentNum, String newAddr) {
     throwIfSetterInvalidUsage();
     configBuilder.getMappingBuilder()
       .putFragmentToCMI(fragmentNum, newAddr);
+    return this;
   }
 
   @Override
-  public void deleteFragment(int fragmentNum) {
+  public InMemoryConfig deleteFragment(int fragmentNum) {
     throwIfSetterInvalidUsage();
     configBuilder.getMappingBuilder()
       .removeFragmentToCMI(fragmentNum);
+    return this;
   }
 
   @Override
-  public void endUpdate() {
+  public InMemoryConfig endUpdate() {
     throwIfSetterInvalidUsage();
     configBuilder.setId(configBuilder.getId() + 1);
+    isUpdating = false;
     lock.writeLock().unlock();
+    return this;
   }
 
   /**
@@ -85,7 +90,7 @@ public class InMemoryConfig implements Config {
    */
   private void throwIfSetterInvalidUsage() {
     if (!isUpdating) {
-      throw new IllegalStateException("Calling a setter before callign beginUpdate!");
+      throw new IllegalStateException("Calling a setter before calling beginUpdate!");
     }
   }
 }
