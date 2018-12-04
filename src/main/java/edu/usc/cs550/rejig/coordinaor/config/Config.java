@@ -1,5 +1,6 @@
 package edu.usc.cs550.rejig.coordinator.config;
 
+import edu.usc.cs550.rejig.interfaces.Fragment;
 import edu.usc.cs550.rejig.interfaces.RejigConfig;
 
 /**
@@ -10,14 +11,21 @@ public interface Config {
   /** Returns a serialized version of the config. */
   RejigConfig get();
 
+  /**
+   * Returns a serialized version of the config.
+   * But removes all fragments from the end which have a
+   * null or empty server address.
+   */
+  RejigConfig getCleaned();
+
   /** Get the current config id. */
   int getConfigId();
 
   /**
-   * Returns the CMI address assigned to the given fragment.
+   * Returns the Fragment at the specified index.
    * Returns null if fragment does not exist.
    */
-  String getFragment(int fragmentNum);
+  Fragment getFragment(int fragmentNum);
 
   /**
    * To call before calling any of the setter methods.
@@ -27,14 +35,14 @@ public interface Config {
 
   /**
    * Sets a new CMI address for the given fragment number.
-   * Overrides existing fragments.
+   * Overrides existing fragments. Should update the fragment id.
    */
   Config setFragment(int fragmentNum, String newAddr);
 
   /**
-   * Deletes a fragment from the config.
+   * Add a new CMI address to the end of the fragment list.
    */
-  Config deleteFragment(int fragmentNum);
+  Config addFragment(String newAddr);
 
   /**
    * To call after calling all of the setter methods.

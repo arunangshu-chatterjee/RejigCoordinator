@@ -1,18 +1,17 @@
 package edu.usc.cs550.rejig.coordinator;
 
+import edu.usc.cs550.rejig.client.MemcachedClient;
+import edu.usc.cs550.rejig.client.configreader.RejigConfigReader;
+import edu.usc.cs550.rejig.client.SockIOPool;
 import edu.usc.cs550.rejig.coordinator.config.Config;
-import edu.usc.cs550.rejig.interfaces.FragmentAssignments;
+import edu.usc.cs550.rejig.interfaces.FragmentList;
 import edu.usc.cs550.rejig.interfaces.RejigConfig;
 import edu.usc.cs550.rejig.interfaces.RejigWriterGrpc;
 
-import com.whalin.MemCached.MemCachedClient;
-import com.whalin.MemCached.SockIOPool;
 import io.grpc.stub.StreamObserver;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.HashSet;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.*;
 
 /**
  * A GRPC service to write/modify the coordinator config.
@@ -20,104 +19,131 @@ import java.util.HashSet;
  */
 public class RejigCoordinatorWriter extends RejigWriterGrpc.RejigWriterImplBase {
 
-  private static final String CONFIG_ID_MEMCACHED_KEY = "$$CONFIG_ID_KEY$$";
-
   protected Config config;
 
-  protected Map<String, MemCachedClient> memCachedClients = new HashMap<String, MemCachedClient>();
+  protected AtomicReference<MemcachedClient> mc;
 
   /**
    * Creates a writer to RejigCoordinator.
-   * The passed config should be contain an empty fragment assignment,
-   * and setConfig should be called with the initializing fragment assignment.
+   * The passed config contain an empty fragment assignments,
+   * and setConfig should be called with the initializing fragment assignments.
    */
   RejigCoordinatorWriter(Config config) {
     this.config = config;
-    if (config.get().getMapping().getFragmentToCMICount() > 0) {
+    mc = new AtomicReference<>();
+    if (config.get().getFragmentCount() > 0) {
       throw new IllegalArgumentException("Initial config object's fragment assignments should be empty.");
     }
   }
 
   @Override
-  public void setConfig(FragmentAssignments newAssignments, StreamObserver<RejigConfig> responseObserver) {
+  public void setConfig(FragmentList newAssignments, StreamObserver<RejigConfig> responseObserver) {
     updateConfig(newAssignments);
     responseObserver.onNext(config.get());
     responseObserver.onCompleted();
   }
 
   /** Create a memcached client to the specified address. */
-  private void createMemcachedClient(String cmiAddr) {
-    if (!memCachedClients.containsKey(cmiAddr)) {
-      SockIOPool pool = SockIOPool.getInstance(cmiAddr);
-      pool.setServers(new String[] { cmiAddr });
-      memCachedClients.put(cmiAddr, new MemCachedClient(cmiAddr));
-    }
-  }
+  private MemcachedClient createMemcachedClient(RejigConfig config) {
+    ConfigReader configReader = new ConfigReader();
+    configReader.setConfig(config);
+    SockIOPool.SockIOPoolOptions options = new SockIOPool.SockIOPoolOptions();
+    options.initConn = 1;
+    options.minConn = 1;
+    options.maxConn = 1;
+    options.maintSleep = 20;
+    options.nagle = false;
 
-  /** Update the config object in specified CMI. */
-  private void updateImpactedCMI(String oldAddr) {
-    MemCachedClient mcc = memCachedClients.get(oldAddr);
-    mcc.set(CONFIG_ID_MEMCACHED_KEY, config.getConfigId());
+    MemcachedClient client = new MemcachedClient(configReader, options);
+    return client;
   }
 
   /**
    * Updates the current config to match the new config.
    * Also updates memcached clients map.
    */
-  private void updateConfig(FragmentAssignments assignments) {
-    Map<Integer, String> oldAssignments = config.get().getMapping().getFragmentToCMIMap();
-    Map<Integer, String> newAssignments = assignments.getFragmentToCMIMap();
-
-    HashSet<String> impactedCMIs = new HashSet<>();
-    HashSet<String> removedCMIs  = new HashSet<>();
+  private void updateConfig(FragmentList assignments) {
+    HashMap<String, ArrayList<Integer>> impactedCMIs = new HashMap<>();
+    HashMap<String, ArrayList<Integer>> toLease = new HashMap<>();
+    RejigConfig oldConfig = config.get();
+    int oldFragmentCount = oldConfig.getFragmentCount();
+    int minIndex = Math.min(oldFragmentCount, assignments.getAddressCount());
 
     config.beginUpdate();
-    // Get deleted fragments.
-    for (int fragmentNum : oldAssignments.keySet()) {
-      if (!newAssignments.containsKey(fragmentNum)) {
-        String cmiAddr = oldAssignments.get(fragmentNum);
-        impactedCMIs.add(cmiAddr);
-        removedCMIs.add(cmiAddr);
-        config.deleteFragment(fragmentNum);
+    for (int i = 0; i < minIndex; i++) {
+      String oldAddr = oldConfig.getFragment(i).getAddress();
+      String newAddr = assignments.getAddress(i);
+      if (!oldAddr.equals(newAddr)) {
+        if (!impactedCMIs.containsKey(oldAddr)) {
+          impactedCMIs.put(oldAddr, new ArrayList<>());
+        }
+        impactedCMIs.get(oldAddr).add(i + 1);
+        if (!toLease.containsKey(newAddr)) {
+          toLease.put(newAddr, new ArrayList<>());
+        }
+        toLease.get(newAddr).add(i + 1);
+        config.setFragment(i, newAddr);
       }
     }
 
-    // Get newly added, and modified fragments.
-    for (int fragmentNum: newAssignments.keySet()) {
-      String cmiAddr = newAssignments.get(fragmentNum);
-      // Create a client for all cmi addrs if it doesn't already exist.
-      createMemcachedClient(cmiAddr);
-      if (removedCMIs.contains(cmiAddr)) {
-        removedCMIs.remove(cmiAddr);
+    for (int i = minIndex; i < assignments.getAddressCount(); i++) {
+      String newAddr = assignments.getAddress(i);
+      if (!impactedCMIs.containsKey(newAddr)) {
+        impactedCMIs.put(newAddr, new ArrayList<>());
       }
-      if (!oldAssignments.containsKey(fragmentNum)) {
-        // New fragments.
-        impactedCMIs.add(cmiAddr);
-        config.setFragment(fragmentNum, cmiAddr);
-      } else {
-        String oldAddr = oldAssignments.get(fragmentNum);
-        if (!oldAddr.equals(cmiAddr)) {
-          // Modified fragments.
-          impactedCMIs.add(oldAddr);
-          config.setFragment(fragmentNum, cmiAddr);
-        }
+      if (!toLease.containsKey(newAddr)) {
+        toLease.put(newAddr, new ArrayList<>());
       }
+      toLease.get(newAddr).add(i + 1);
+      config.addFragment(newAddr);
+    }
+
+    for (int i = minIndex; i < oldFragmentCount; i++) {
+      String oldAddr = config.getFragment(i).getAddress();
+      if (!impactedCMIs.containsKey(oldAddr)) {
+        impactedCMIs.put(oldAddr, new ArrayList<>());
+      }
+      impactedCMIs.get(oldAddr).add(i + 1);
+      config.setFragment(i, "");
     }
     config.endUpdate();
 
-    int newConfigId = config.getConfigId();
-    for (String cmiAddr : impactedCMIs) {
-      MemCachedClient client = memCachedClients.get(cmiAddr);
-      client.set(CONFIG_ID_MEMCACHED_KEY, newConfigId);
+    RejigConfig newConfig = config.getCleaned();
+    MemcachedClient newClient = createMemcachedClient(newConfig);
+    // Grant leases on new fragments.
+    for (String cmi : toLease.keySet()) {
+      Date expiry = new Date(System.currentTimeMillis() + 30 * 24 * 60 * 60 * 1000);
+      for (int fragmentNum : toLease.get(cmi)) {
+        newClient.grantLease(fragmentNum, expiry, cmi);
+      }
     }
 
-    for (String cmiAddr : removedCMIs) {
-      deleteMemcachedClient(cmiAddr);
+    MemcachedClient oldClient = mc.get();
+    if (oldClient != null) {
+      // Revoke leases for impacted fragments.
+      // Update config on impacted cmi.
+      for (String impactedCMI : impactedCMIs.keySet()) {
+        for (int fragmentNum : impactedCMIs.get(impactedCMI)) {
+          oldClient.revokeLease(fragmentNum, impactedCMI);
+        }
+        oldClient.setConfig(newConfig, null, impactedCMI);
+      }
     }
+
+    // Swap memcached clients.
+    mc.getAndSet(newClient);
+  }
+}
+
+class ConfigReader implements RejigConfigReader {
+  private RejigConfig config;
+
+  @Override
+  public RejigConfig getConfig() {
+    return config;
   }
 
-  /** Deletes clients from the existing map. */
-  private void deleteMemcachedClient(String cmiAddr) {
-     memCachedClients.remove(cmiAddr);
+  public void setConfig(RejigConfig config) {
+    this.config = config;
   }
 }

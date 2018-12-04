@@ -20,7 +20,7 @@ public class RejigCoordinatorReader extends RejigReaderGrpc.RejigReaderImplBase 
 
   @Override
   public void getConfig(Empty req, StreamObserver<RejigConfig> responseObserver) {
-    responseObserver.onNext(config.get());
+    responseObserver.onNext(config.getCleaned());
     responseObserver.onCompleted();
   }
 }

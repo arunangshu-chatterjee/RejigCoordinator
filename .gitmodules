@@ -1,3 +1,6 @@
 [submodule "RejigInterface"]
 	path = RejigInterface
 	url = https://github.com/Likhit/RejigInterface.git
+[submodule "Memcached-Java-Client"]
+	path = Memcached-Java-Client
+	url = https://github.com/Likhit/Memcached-Java-Client

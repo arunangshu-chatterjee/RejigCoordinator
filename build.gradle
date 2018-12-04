@@ -10,8 +10,8 @@ dependencies {
   //api 'org.apache.commons:commons-math3:3.6.1'
 
   // These dependency is used internally, and not exposed to consumers on their own compile classpath.
-  implementation 'com.whalin:Memcached-Java-Client:3.0.2'
   implementation project('RejigInterface')
+  implementation files('Memcached-Java-Client/build/libs/Memcached-Java-Client.jar')
 
   // Use JUnit test framework
   testImplementation 'junit:junit:4.12'
@@ -24,3 +24,11 @@ repositories {
   // You can declare any Maven/Ivy/file repository here.
   jcenter()
 }
+
+task buildMemcachedClient(type: Exec) {
+  outputs.file file('Memcached-Java-Client/build/libs/Memcached-Java-Client.jar')
+  commandLine './Memcached-Java-Client/gradlew.bat'
+  args ('build', '--status')
+}
+
+build.dependsOn buildMemcachedClient
