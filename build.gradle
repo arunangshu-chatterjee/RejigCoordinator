@@ -24,11 +24,3 @@ repositories {
   // You can declare any Maven/Ivy/file repository here.
   jcenter()
 }
-
-task buildMemcachedClient(type: Exec) {
-  outputs.file file('Memcached-Java-Client/build/libs/Memcached-Java-Client.jar')
-  commandLine './Memcached-Java-Client/gradlew.bat'
-  args ('build', '--status')
-}
-
-build.dependsOn buildMemcachedClient

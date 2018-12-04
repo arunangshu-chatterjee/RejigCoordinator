@@ -1,6 +1,6 @@
 package edu.usc.cs550.rejig.coordinator.config;
 
-import edu.usc.cs550.rejig.interfaces.FragmentAssignments;
+import edu.usc.cs550.rejig.interfaces.FragmentList;
 import edu.usc.cs550.rejig.interfaces.RejigConfig;
 
 import static org.junit.Assert.assertEquals;
@@ -22,26 +22,57 @@ public class InMemoryConfigTest {
     InMemoryConfig config = new InMemoryConfig();
     RejigConfig defaultConfig = config.get();
     assertEquals(defaultConfig.getId(), 0);
-    assertEquals(defaultConfig.getMapping().getFragmentToCMICount(), 0);
+    assertEquals(defaultConfig.getFragmentCount(), 0);
   }
 
   /**
-   * Test that setFragment adds fragments correctly.
+   * Test that addFragment adds fragments correctly.
+   */
+  @Test
+  public void inMemoryConfig_addFragment() {
+    InMemoryConfig config = new InMemoryConfig();
+    RejigConfig conf = config.beginUpdate()
+      .addFragment("server1:port1")
+      .addFragment("server2:port2")
+      .addFragment("server3:port3")
+      .endUpdate().get();
+
+    assertEquals(conf.getFragmentCount(), 3);
+    assertEquals(conf.getFragment(0).getId(), 1);
+    assertEquals(conf.getFragment(0).getAddress(), "server1:port1");
+    assertEquals(conf.getFragment(1).getId(), 1);
+    assertEquals(conf.getFragment(1).getAddress(), "server2:port2");
+    assertEquals(conf.getFragment(2).getId(), 1);
+    assertEquals(conf.getFragment(2).getAddress(), "server3:port3");
+  }
+
+  /**
+   * Test that setFragment sets fragments correctly.
    */
   @Test
   public void inMemoryConfig_setFragment() {
     InMemoryConfig config = new InMemoryConfig();
-    FragmentAssignments assignments = config.beginUpdate()
-      .setFragment(1, "server1:port1")
-      .setFragment(2, "server2:port2")
-      .setFragment(4, "server3:port3")
-      .endUpdate().get().getMapping();
+    RejigConfig conf = config.beginUpdate()
+      .addFragment("server1:port1")
+      .addFragment("server2:port2")
+      .endUpdate().get();
 
-    assertEquals(assignments.getFragmentToCMICount(), 3);
-    assertEquals(assignments.getFragmentToCMIOrDefault(1, null), "server1:port1");
-    assertEquals(assignments.getFragmentToCMIOrDefault(2, null), "server2:port2");
-    assertEquals(assignments.getFragmentToCMIOrDefault(3, null), null);
-    assertEquals(assignments.getFragmentToCMIOrDefault(4, null), "server3:port3");
+    assertEquals(conf.getFragmentCount(), 2);
+    assertEquals(conf.getFragment(0).getId(), 1);
+    assertEquals(conf.getFragment(0).getAddress(), "server1:port1");
+    assertEquals(conf.getFragment(1).getId(), 1);
+    assertEquals(conf.getFragment(1).getAddress(), "server2:port2");
+
+    conf = config.beginUpdate()
+      .setFragment(1, "server3:port3")
+      .endUpdate().get();
+
+    assertEquals(conf.getFragmentCount(), 2);
+    assertEquals(conf.getId(), 2);
+    assertEquals(conf.getFragment(0).getId(), 1);
+    assertEquals(conf.getFragment(0).getAddress(), "server1:port1");
+    assertEquals(conf.getFragment(1).getId(), 2);
+    assertEquals(conf.getFragment(1).getAddress(), "server3:port3");
   }
 
   /**
@@ -54,37 +85,9 @@ public class InMemoryConfigTest {
     assertEquals(config.get().getId(), 0);
     RejigConfig conf = config.beginUpdate()
       .endUpdate().get();
-    FragmentAssignments assignments = conf.getMapping();
 
     assertEquals(conf.getId(), 1);
-    assertEquals(assignments.getFragmentToCMICount(), 0);
-  }
-
-  /**
-   * Test that deleteFragment removes fragments correctly.
-   */
-  @Test
-  public void inMemoryConfig_deleteFragment() {
-    InMemoryConfig config = new InMemoryConfig();
-
-    FragmentAssignments assignments = config.beginUpdate()
-      .setFragment(1, "server1:port1")
-      .setFragment(2, "server2:port2")
-      .setFragment(4, "server3:port3")
-      .endUpdate().get().getMapping();
-
-    assertEquals(assignments.getFragmentToCMICount(), 3);
-    assignments = config.beginUpdate()
-      .deleteFragment(2)
-      .deleteFragment(1)
-      .endUpdate().get().getMapping();
-
-
-    assertEquals(assignments.getFragmentToCMICount(), 1);
-    assertEquals(assignments.getFragmentToCMIOrDefault(1, null), null);
-    assertEquals(assignments.getFragmentToCMIOrDefault(2, null), null);
-    assertEquals(assignments.getFragmentToCMIOrDefault(3, null), null);
-    assertEquals(assignments.getFragmentToCMIOrDefault(4, null), "server3:port3");
+    assertEquals(conf.getFragmentCount(), 0);
   }
 
   /**
@@ -94,7 +97,7 @@ public class InMemoryConfigTest {
   public void inMemoryConfig_noSetterBeforeBeginUpdate() {
     InMemoryConfig config = new InMemoryConfig();
 
-    RejigConfig conf = config.setFragment(1, "server1:port1")
+    RejigConfig conf = config.addFragment("server1:port1")
       .endUpdate().get();
   }
 
@@ -102,10 +105,10 @@ public class InMemoryConfigTest {
   @Test
   public void inMemoryConfig_getters() {
     InMemoryConfig config = new InMemoryConfig();
-    config.beginUpdate().setFragment(1, "server1:port1").endUpdate();
+    config.beginUpdate().addFragment( "server1:port1").endUpdate();
 
     assertEquals(config.getConfigId(), 1);
-    assertEquals(config.getFragment(1), "server1:port1");
+    assertEquals(config.getFragment(0).getAddress(), "server1:port1");
   }
 
   /** Test that beginUpdate locks the object. And endlock unlocks. */

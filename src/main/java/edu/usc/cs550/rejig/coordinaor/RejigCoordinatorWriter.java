@@ -38,8 +38,8 @@ public class RejigCoordinatorWriter extends RejigWriterGrpc.RejigWriterImplBase 
 
   @Override
   public void setConfig(FragmentList newAssignments, StreamObserver<RejigConfig> responseObserver) {
-    updateConfig(newAssignments);
-    responseObserver.onNext(config.get());
+    RejigConfig conf = updateConfig(newAssignments);
+    responseObserver.onNext(conf);
     responseObserver.onCompleted();
   }
 
@@ -62,7 +62,7 @@ public class RejigCoordinatorWriter extends RejigWriterGrpc.RejigWriterImplBase 
    * Updates the current config to match the new config.
    * Also updates memcached clients map.
    */
-  private void updateConfig(FragmentList assignments) {
+  private RejigConfig updateConfig(FragmentList assignments) {
     HashMap<String, ArrayList<Integer>> impactedCMIs = new HashMap<>();
     HashMap<String, ArrayList<Integer>> toLease = new HashMap<>();
     RejigConfig oldConfig = config.get();
@@ -132,6 +132,7 @@ public class RejigCoordinatorWriter extends RejigWriterGrpc.RejigWriterImplBase 
 
     // Swap memcached clients.
     mc.getAndSet(newClient);
+    return newConfig;
   }
 }
 
