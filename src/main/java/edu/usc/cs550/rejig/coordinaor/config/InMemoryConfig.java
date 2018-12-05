@@ -91,6 +91,7 @@ public class InMemoryConfig implements Config {
         fragmentNum,
         configBuilder.getFragmentCount()
       );
+      lock.writeLock().unlock();
       throw new IndexOutOfBoundsException(message);
     }
     return this;

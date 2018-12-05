@@ -1,5 +1,4 @@
 plugins {
-  // Apply the java-library plugin to add support for Java Library
   id 'java-library'
 }
 
@@ -12,9 +11,13 @@ dependencies {
   // These dependency is used internally, and not exposed to consumers on their own compile classpath.
   implementation project('RejigInterface')
   implementation files('Memcached-Java-Client/build/libs/Memcached-Java-Client.jar')
+  implementation 'org.apache.curator:curator-x-async:4.0.1'
+  implementation 'org.apache.curator:curator-recipes:4.0.1'
+  implementation "io.grpc:grpc-netty-shaded:${grpcVersion}"
 
   // Use JUnit test framework
   testImplementation 'junit:junit:4.12'
+  testImplementation 'org.apache.curator:curator-test:4.0.1'
   testImplementation "io.grpc:grpc-testing:${grpcVersion}"
 }
 
@@ -23,4 +26,37 @@ repositories {
   // Use jcenter for resolving your dependencies.
   // You can declare any Maven/Ivy/file repository here.
   jcenter()
+}
+
+task run(type: JavaExec) {
+  classpath = sourceSets.main.runtimeClasspath
+  if (project.hasProperty('coordinator')) {
+    if (coordinator == 'in-memory') {
+      if (!project.hasProperty('readerPort') || !project.hasProperty('writerPort')) {
+        println 'Please pass parameters -PreaderPort, and -PwriterPort'
+        return
+      }
+      main = 'edu.usc.cs550.rejig.coordinator.InMemoryCoordinator'
+      args(readerPort, writerPort)
+    } else if (coordinator == 'zookeeper-reader') {
+      if (!project.hasProperty('port') || !project.hasProperty('zookeeperAddress')) {
+        println 'Please pass parameters -Pport, and -PzookeeperAddress'
+        return
+      }
+      main = 'edu.usc.cs550.rejig.coordinator.ZooKeeperCoordinator'
+      args('false', zookeeperAddress, port)
+    } else if (coordinator == 'zookeeper-writer') {
+      if (!project.hasProperty('port') || !project.hasProperty('zookeeperAddress')) {
+        println 'Please pass parameters -Pport, and -PzookeeperAddress'
+        return
+      }
+      main = 'edu.usc.cs550.rejig.coordinator.ZooKeeperCoordinator'
+      args('true', zookeeperAddress, port)
+    } else {
+      println 'The coordinator value can be in-memory, zookeeper-reader, or zookeeper-writer'
+    }
+  } else {
+    println 'Please pass a coordinator using -Pcoordinator.'
+    println 'The coordinator value can be in-memory, zookeeper-reader, or zookeeper-writer'
+  }
 }

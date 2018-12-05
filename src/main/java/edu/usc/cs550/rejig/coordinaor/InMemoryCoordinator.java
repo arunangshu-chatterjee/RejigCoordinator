@@ -67,12 +67,20 @@ public class InMemoryCoordinator {
   }
 
   /** Wait for shutdown of both servers. */
-  public void blockUntilShutdowna() throws InterruptedException {
+  public void blockUntilShutdown() throws InterruptedException {
     if (reader != null) {
       reader.awaitTermination();
     }
     if (writer != null) {
       writer.awaitTermination();
     }
+  }
+
+  public static void main(String[] args) throws IOException, InterruptedException {
+    int readerPort = Integer.parseInt(args[0]);
+    int writerPort = Integer.parseInt(args[1]);
+    final InMemoryCoordinator coordinator = new InMemoryCoordinator(readerPort, writerPort);
+    coordinator.start();
+    coordinator.blockUntilShutdown();
   }
 }
