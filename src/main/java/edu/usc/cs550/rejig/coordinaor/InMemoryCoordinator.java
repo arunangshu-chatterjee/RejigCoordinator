@@ -75,12 +75,4 @@ public class InMemoryCoordinator {
       writer.awaitTermination();
     }
   }
-
-  public static void main(String[] args) throws IOException, InterruptedException {
-    int readerPort = Integer.parseInt(args[0]);
-    int writerPort = Integer.parseInt(args[1]);
-    final InMemoryCoordinator coordinator = new InMemoryCoordinator(readerPort, writerPort);
-    coordinator.start();
-    coordinator.blockUntilShutdown();
-  }
 }

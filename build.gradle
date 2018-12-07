@@ -1,5 +1,6 @@
 plugins {
   id 'java-library'
+  id 'application'
 }
 
 def grpcVersion = '1.16.1'
@@ -28,35 +29,4 @@ repositories {
   jcenter()
 }
 
-task run(type: JavaExec) {
-  classpath = sourceSets.main.runtimeClasspath
-  if (project.hasProperty('coordinator')) {
-    if (coordinator == 'in-memory') {
-      if (!project.hasProperty('readerPort') || !project.hasProperty('writerPort')) {
-        println 'Please pass parameters -PreaderPort, and -PwriterPort'
-        return
-      }
-      main = 'edu.usc.cs550.rejig.coordinator.InMemoryCoordinator'
-      args(readerPort, writerPort)
-    } else if (coordinator == 'zookeeper-reader') {
-      if (!project.hasProperty('port') || !project.hasProperty('zookeeperAddress')) {
-        println 'Please pass parameters -Pport, and -PzookeeperAddress'
-        return
-      }
-      main = 'edu.usc.cs550.rejig.coordinator.ZooKeeperCoordinator'
-      args('false', zookeeperAddress, port)
-    } else if (coordinator == 'zookeeper-writer') {
-      if (!project.hasProperty('port') || !project.hasProperty('zookeeperAddress')) {
-        println 'Please pass parameters -Pport, and -PzookeeperAddress'
-        return
-      }
-      main = 'edu.usc.cs550.rejig.coordinator.ZooKeeperCoordinator'
-      args('true', zookeeperAddress, port)
-    } else {
-      println 'The coordinator value can be in-memory, zookeeper-reader, or zookeeper-writer'
-    }
-  } else {
-    println 'Please pass a coordinator using -Pcoordinator.'
-    println 'The coordinator value can be in-memory, zookeeper-reader, or zookeeper-writer'
-  }
-}
+mainClassName = 'edu.usc.cs550.rejig.coordinator.App'

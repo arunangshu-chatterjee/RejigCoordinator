@@ -110,7 +110,7 @@ public class RejigCoordinatorWriter extends RejigWriterGrpc.RejigWriterImplBase 
     // Grant leases on new fragments.
     for (String cmi : toLease.keySet()) {
       newClient.setConfig(newConfig, null, cmi);
-      Date expiry = new Date(System.currentTimeMillis() + 30 * 24 * 60 * 60 * 1000);
+      Date expiry = new Date(System.currentTimeMillis() + 24 * 60 * 60 * 1000);
       for (int fragmentNum : toLease.get(cmi)) {
         newClient.grantLease(fragmentNum, expiry, cmi);
       }

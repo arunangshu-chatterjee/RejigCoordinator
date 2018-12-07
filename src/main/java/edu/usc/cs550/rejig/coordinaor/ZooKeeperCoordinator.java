@@ -82,14 +82,4 @@ public class ZooKeeperCoordinator {
       server.awaitTermination();
     }
   }
-
-  public static void main(String[] args) throws IOException, InterruptedException, Exception {
-    boolean isWriter = Boolean.parseBoolean(args[0]);
-    String zookeeperAddress = args[1];
-    int port = Integer.parseInt(args[2]);
-    final ZooKeeperCoordinator coordinator =
-      new ZooKeeperCoordinator(isWriter, zookeeperAddress, port);
-    coordinator.start();
-    coordinator.blockUntilShutdown();
-  }
 }
