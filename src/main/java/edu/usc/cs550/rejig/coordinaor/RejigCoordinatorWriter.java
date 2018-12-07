@@ -88,9 +88,6 @@ public class RejigCoordinatorWriter extends RejigWriterGrpc.RejigWriterImplBase 
 
     for (int i = minIndex; i < assignments.getAddressCount(); i++) {
       String newAddr = assignments.getAddress(i);
-      if (!impactedCMIs.containsKey(newAddr)) {
-        impactedCMIs.put(newAddr, new ArrayList<>());
-      }
       if (!toLease.containsKey(newAddr)) {
         toLease.put(newAddr, new ArrayList<>());
       }
@@ -112,6 +109,7 @@ public class RejigCoordinatorWriter extends RejigWriterGrpc.RejigWriterImplBase 
     MemcachedClient newClient = createMemcachedClient(newConfig);
     // Grant leases on new fragments.
     for (String cmi : toLease.keySet()) {
+      newClient.setConfig(newConfig, null, cmi);
       Date expiry = new Date(System.currentTimeMillis() + 30 * 24 * 60 * 60 * 1000);
       for (int fragmentNum : toLease.get(cmi)) {
         newClient.grantLease(fragmentNum, expiry, cmi);
