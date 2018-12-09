@@ -19,7 +19,7 @@ public class App {
       inMemoryMain(readerPort, writerPort);
     } else if (args[0].equals("zookeeper-reader")
         || args[0].equals("zookeeper-writer")) {
-      boolean isWriter = args[0] == "zookeeper-writer";
+      boolean isWriter = args[0].equals("zookeeper-writer");
       String zookeeperAddress;
       int port;
       try {
